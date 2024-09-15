@@ -91,7 +91,7 @@ export DO_NOT_COMPILE="false"
 # Make sure that ccache is installed before enabling this.
 export USE_CCACHE="${USE_CCACHE:-false}"
 
-export WINE_BUILD_OPTIONS="--disable-winemenubuilder --disable-win16 --enable-win64 --disable-tests --without-capi --without-coreaudio --without-cups --without-gphoto --without-osmesa --without-oss --without-pcap --without-pcsclite --without-sane --without-udev --without-unwind --without-usb --without-v4l2 --without-wayland --without-xinerama"
+export WINE_BUILD_OPTIONS="--disable-winemenubuilder --disable-win16 --enable-win64 --disable-tests --without-capi --without-cups --without-gphoto --without-osmesa --without-oss --without-pcap --without-pcsclite --without-sane --without-unwind --without-usb --without-v4l2 --without-wayland --without-xinerama"
 
 # A temporary directory where the Wine source code will be stored.
 # Do not set this variable to an existing non-empty directory!
@@ -337,14 +337,11 @@ elif [ "$WINE_BRANCH" = "proton" ]; then
 	fi
 else
 	if [ "${WINE_VERSION}" = "git" ]; then
-		git clone https://gitlab.winehq.org/wine/wine.git wine
+		git clone https://github.com/Fartopblu/wine-custom.git wine
 		BUILD_NAME="${WINE_VERSION}-$(git -C wine rev-parse --short HEAD)"
+  		echo "check"
 	else
-		BUILD_NAME="${WINE_VERSION}"
-
-		wget -q --show-progress "https://dl.winehq.org/wine/source/${WINE_URL_VERSION}/wine-${WINE_VERSION}.tar.xz"
-		tar xf "wine-${WINE_VERSION}.tar.xz"
-		mv "wine-${WINE_VERSION}" wine
+		exit 1
 	fi
 
         if [ "$WINE_BRANCH" = "staging" ] || [ "$WINE_BRANCH" = "vanilla" ]; then
@@ -406,6 +403,7 @@ fi
     fi
 
 		cd wine || exit 1
+  		unset STAGING_ARGS
 		if [ -n "${STAGING_ARGS}" ]; then
 			"${staging_patcher[@]}" ${STAGING_ARGS}
 		else
@@ -442,7 +440,7 @@ fi
 # Checks which Wine branch you are building and applies additional convenient patches.
 # Staging-tkg part isn't finished and will not build if it's Wine 9.4 and lower.
 
-if [ "$TERMUX_GLIBC" = "true" ]; then
+if [ "$TERMUX_GLIBC" != "true" ]; then
     echo "Applying additional patches for Termux Glibc..."
 
     if [ "$WINE_BRANCH" = "staging" ]; then
@@ -513,23 +511,6 @@ fi
 #    }
 #    clear 
 #fi
-    
-# NDIS patch for fixing crappy Android's SELinux limitations.
-if [ "$TERMUX_GLIBC" = "true" ]; then
-echo "Circumventing crappy SELinux's limitations... (Thanks BrunoSX)"
-patch -d wine -Np1 < "${scriptdir}"/ndis.patch || {
-        echo "Error: Failed to apply one or more patches."
-        exit 1
-    }
-    clear
-else
-echo "Circumventing crappy SELinux's limitations... (Thanks BrunoSX)"
-patch -d wine -Np1 < "${scriptdir}"/ndis-proot.patch || {
-        echo "Error: Failed to apply one or more patches."
-        exit 1
-    }
-    clear
-fi
 
 #echo "Adding virtual memory environment variable (fixes some games) (credits to BrunoSX for the initial idea)"
 #patch -d wine -Np1 < "${scriptdir}"/virtualmemory.patch || {
@@ -554,23 +535,6 @@ if [ ! -d wine ]; then
 fi
 
 cd wine || exit 1
-if [ "$WINE_BRANCH" = "vanilla" ]; then
-git revert --no-commit 2bfe81e41f93ce75139e3a6a2d0b68eb2dcb8fa6 || {
-        echo "Error: Failed to revert one or two patches. Stopping."
-        exit 1
-    }
-    clear
-fi
-### Experimental addition to address space hackery
-if [ "$TERMUX_GLIBC" = "true" ]; then
-echo "Applying additional address space patch... (credits to Bylaws)"
-wget -O address-space.patch https://github.com/bylaws/wine/commit/c12890cafb580764c076e4231636cafaf6e35089.patch
-patch -p1 < address-space.patch || {
-        echo "This patch did not apply. Stopping..."
-	exit 1
-    }
-    clear
-fi
 
 ###
 dlls/winevulkan/make_vulkan
